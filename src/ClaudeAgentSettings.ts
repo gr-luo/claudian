@@ -64,24 +64,6 @@ export class ClaudeAgentSettingTab extends PluginSettingTab {
         text.inputEl.cols = 40;
       });
 
-    // Context section
-    containerEl.createEl('h3', { text: 'Context' });
-
-    new Setting(containerEl)
-      .setName('Custom system prompt')
-      .setDesc('Additional instructions for Claude (optional)')
-      .addTextArea((text) => {
-        text
-          .setPlaceholder('E.g., "Always use markdown formatting" or "Focus on concise responses"')
-          .setValue(this.plugin.settings.systemPrompt)
-          .onChange(async (value) => {
-            this.plugin.settings.systemPrompt = value;
-            await this.plugin.saveSettings();
-          });
-        text.inputEl.rows = 4;
-        text.inputEl.cols = 40;
-      });
-
     // UI section
     containerEl.createEl('h3', { text: 'Interface' });
 

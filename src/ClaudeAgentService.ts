@@ -9,6 +9,7 @@ export class ClaudeAgentService {
   private plugin: ClaudeAgentPlugin;
   private abortController: AbortController | null = null;
   private resolvedClaudePath: string | null = null;
+  private hasActiveSession = false;
 
   constructor(plugin: ClaudeAgentPlugin) {
     this.plugin = plugin;
@@ -73,34 +74,7 @@ export class ClaudeAgentService {
     this.abortController = new AbortController();
 
     try {
-      // TODO: Replace this with actual Claude Agent SDK integration
-      // The actual implementation will look something like:
-      //
-      // const options: ClaudeAgentOptions = {
-      //   cwd: vaultPath,
-      //   permissionMode: 'bypassPermissions',
-      //   allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
-      //   systemPrompt: this.buildSystemPrompt(),
-      // };
-      //
-      // const stream = query({ prompt, options });
-      //
-      // for await (const message of stream) {
-      //   if (this.abortController?.signal.aborted) break;
-      //
-      //   // Check blocklist
-      //   if (this.shouldBlock(message)) {
-      //     yield { type: 'blocked', content: 'Command blocked by safety filter' };
-      //     continue;
-      //   }
-      //
-      //   yield this.transformMessage(message);
-      // }
-
-      // Placeholder implementation using CLI spawn
-      // This demonstrates the structure - replace with SDK when ready
       yield* this.queryViaCLI(prompt, vaultPath, cliPath);
-
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       yield { type: 'error', content: msg };
@@ -109,19 +83,20 @@ export class ClaudeAgentService {
     }
   }
 
-  /**
-   * Temporary implementation using CLI spawn
-   * Replace with SDK integration when available
-   */
   private async *queryViaCLI(prompt: string, cwd: string, cliPath: string): AsyncGenerator<StreamChunk> {
     const args = [
       '--output-format', 'stream-json',
-      '--include-partial-messages',
-      '--verbose',
+      '--verbose',  // required for stream-json with -p
       '--dangerously-skip-permissions',
-      '-p',
-      prompt,
+      '--model', 'claude-haiku-4-5',
     ];
+
+    // Use --continue for follow-up messages to maintain conversation history
+    if (this.hasActiveSession) {
+      args.push('--continue');
+    }
+
+    args.push('-p', prompt);
 
     const proc = spawn(cliPath, args, {
       cwd,
@@ -258,6 +233,11 @@ export class ClaudeAgentService {
         break;
       }
 
+      // Mark session as active after first successful response
+      if (!this.hasActiveSession && (item.type === 'text' || item.type === 'tool_use')) {
+        this.hasActiveSession = true;
+      }
+
       yield item;
     }
 
@@ -282,12 +262,6 @@ export class ClaudeAgentService {
         }
         break;
 
-      case 'content_block_delta':
-        if (message.delta?.type === 'text_delta') {
-          return { type: 'text', content: message.delta.text };
-        }
-        break;
-
       case 'tool_use':
         return {
           type: 'tool_use',
@@ -304,10 +278,7 @@ export class ClaudeAgentService {
         };
 
       case 'result':
-        // Final result message - extract the result text
-        if (message.result) {
-          return { type: 'text', content: message.result };
-        }
+        // Skip - result duplicates the assistant message content
         break;
 
       case 'error':
@@ -339,27 +310,6 @@ export class ClaudeAgentService {
   }
 
   /**
-   * Build system prompt with vault context
-   */
-  private buildSystemPrompt(): string {
-    const vault = this.plugin.app.vault;
-    const customPrompt = this.plugin.settings.systemPrompt;
-
-    let prompt = `You are Claude, an AI assistant operating inside an Obsidian vault.
-Working directory: ${this.getVaultPath()}
-Total markdown files: ${vault.getMarkdownFiles().length}
-
-Help the user manage their notes, write content, organize files, and build their knowledge base.
-You have full access to read, write, and edit files in this vault.`;
-
-    if (customPrompt) {
-      prompt += `\n\nAdditional instructions:\n${customPrompt}`;
-    }
-
-    return prompt;
-  }
-
-  /**
    * Get the vault's filesystem path
    */
   private getVaultPath(): string | null {
@@ -380,9 +330,18 @@ You have full access to read, write, and edit files in this vault.`;
   }
 
   /**
+   * Reset the conversation session
+   * Call this when clearing the chat to start fresh
+   */
+  resetSession() {
+    this.hasActiveSession = false;
+  }
+
+  /**
    * Cleanup resources
    */
   cleanup() {
     this.cancel();
+    this.resetSession();
   }
 }

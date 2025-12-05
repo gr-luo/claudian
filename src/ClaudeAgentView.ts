@@ -49,7 +49,7 @@ export class ClaudeAgentView extends ItemView {
     this.inputEl = inputContainer.createEl('textarea', {
       cls: 'claude-agent-input',
       attr: {
-        placeholder: 'Ask Claude anything... (Cmd/Ctrl+Enter to send)',
+        placeholder: 'Ask Claude anything... (Enter to send, Shift+Enter for newline)',
         rows: '3',
       },
     });
@@ -65,7 +65,7 @@ export class ClaudeAgentView extends ItemView {
     sendBtn.addEventListener('click', () => this.sendMessage());
 
     this.inputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         this.sendMessage();
       }
@@ -232,6 +232,8 @@ export class ClaudeAgentView extends ItemView {
   private clearConversation() {
     this.messages = [];
     this.messagesEl.empty();
+    // Reset the Claude session so next message starts fresh
+    this.plugin.agentService.resetSession();
     this.addSystemMessage('Conversation cleared. Ready for new messages.');
   }
 

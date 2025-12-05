@@ -3,17 +3,9 @@
 export const VIEW_TYPE_CLAUDE_AGENT = 'claude-agent-view';
 
 export interface ClaudeAgentSettings {
-  // CLI configuration
   claudePath: string;
-
-  // Permission model
   enableBlocklist: boolean;
   blockedCommands: string[];
-
-  // Context
-  systemPrompt: string;
-
-  // UI preferences
   showToolUse: boolean;
 }
 
@@ -29,7 +21,6 @@ export const DEFAULT_SETTINGS: ClaudeAgentSettings = {
     'dd if=',
     '> /dev/sd',
   ],
-  systemPrompt: '',
   showToolUse: true,
 };
 
@@ -45,8 +36,6 @@ export interface ChatMessage {
 export interface ToolUseInfo {
   name: string;
   input: Record<string, unknown>;
-  result?: string;
-  blocked?: boolean;
 }
 
 // Stream chunk types from Claude Agent SDK
