@@ -133,7 +133,6 @@ export function replaceImageEmbedsWithHtml(
 ): string {
   // Defensive check for app state
   if (!app?.vault || !app?.metadataCache) {
-    console.warn('[imageEmbed] App not fully initialized, skipping embed processing');
     return markdown;
   }
 
@@ -152,14 +151,12 @@ export function replaceImageEmbedsWithHtml(
         // Resolve the image file
         const file = resolveImageFile(app, imagePath, mediaFolder);
         if (!file) {
-          console.debug('[imageEmbed] Image not found:', imagePath);
           return createFallbackHtml(match);
         }
 
         // Create img tag with resolved file
         return createImageHtml(app, file, altText);
-      } catch (error) {
-        console.warn('[imageEmbed] Failed to process embed:', imagePath, error);
+      } catch {
         return createFallbackHtml(match);
       }
     }
